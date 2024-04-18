@@ -8,7 +8,7 @@ Let's take a crack at some home-made AI poison
 Nightshade doesn't publicise their code but you can try out there software... On my mac with M1 Pro chip would only allow up to 3 pictures to be converted at a time at 1-5 mins of conversion per picture.
 
 ## Approach:
-Welp it's basically trynna take a look at couple pictures converted by Nightshade using different strength levels, observing what's been done, and try to deduce what types of mathematical transformations might have been done to the data.
+Reverse engineer nightshade's equations with data... And let's try to poison some models
 
 ## Tools?
 Good old-fashioned reverse engineering skills.

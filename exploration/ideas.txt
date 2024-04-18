@@ -1,0 +1,18 @@
+# cool approach here is maybe
+
+# 1) Poison Model - test out couple different variations like GANs, Diffusion, and VAE like apporaches
+# -> Can I get some intelligence on how to do wif Few-shot learning like approach?
+
+# -> 
+
+
+# 2) Model to Poison - grab some open source stuff man and then try it out couple approaches ()
+# -> https://github.com/deep-floyd/IF?referral=top-free-image-generation-tools-apis-and-open-source-models
+# -> https://github.com/runwayml/stable-diffusion?referral=top-free-image-generation-tools-apis-and-open-source-models
+# -> https://github.com/prompthero/openjourney?referral=top-free-image-generation-tools-apis-and-open-source-models
+# -> https://github.com/borisdayma/dalle-mini?tab=readme-ov-file
+
+
+
+# 3)Image to Text - for taglines 
+-> 
