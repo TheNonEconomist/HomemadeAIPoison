@@ -25,11 +25,11 @@ def main(args):
             image = import_image(file_path)
 
             # Resized
-            save_path_resized = file_path[:-len(pic_name)] + "lobster_art_resized/" + pic_name
+            save_path_resized = file_path[:-len(pic_name)] + args.resized_file_name + pic_name
             cv2.imwrite(save_path_resized, resize_image(image, args.new_width, args.new_height))
 
             # Padded
-            save_path_padded = file_path[:-len(pic_name)] + "lobster_art_padded/" + pic_name
+            save_path_padded = file_path[:-len(pic_name)] + args.padded_file_name + pic_name
             cv2.imwrite(save_path_padded, resize_and_pad_image(image, args.new_width, args.new_height))
     
     # Train model(s)
@@ -43,9 +43,6 @@ def main(args):
     )
     
     # Resized
-    
-    
-
             
     # Padded
 
@@ -54,5 +51,11 @@ if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument("-w", "--new_width", type=int, help="")
     args.add_argument("-h", "--new_height", type=int, help="")
+
+    args.add_argument("-r", "--resized_file_name", type=str, help="name of file that stores resized images")
+    args.add_argument("-p", "--padded_file_name", type=str, help="name of file that stores padded images")
+
+    
+    
     main(args.parse_args())
 
