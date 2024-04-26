@@ -1,5 +1,5 @@
 # HomemadeAIPoison
-It's home-made.
+It's home-made and hurts bad AI...
 
 ## What?
 Prepare some lab rats... I mean AI models to poison...
