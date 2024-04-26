@@ -1,14 +1,14 @@
 # HomemadeAIPoison
 It's home-made.
 
-## GOAL:
-Let's take a crack at some home-made AI poison
+## What?
+Prepare some lab rats... I mean AI models to poison...
 
 ## Problem:
-Nightshade doesn't publicise their code but you can try out there software... On my mac with M1 Pro chip would only allow up to 3 pictures to be converted at a time at 1-5 mins of conversion per picture.
+Most AI poison pill tools don't publicize their code. Sure you can randomize your data or ad adversarial examples or whatever but what if you're just some person who don't really know how AI works?
 
 ## Approach:
-Reverse engineer nightshade's equations with data... And let's try to poison some models
+Reverse Engineer some poison models
 
 ## Tools?
 Good old-fashioned reverse engineering skills.
