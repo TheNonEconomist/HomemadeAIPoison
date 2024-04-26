@@ -27,8 +27,11 @@ LIFE CYCLE: TODO -> WIP -> DONE -> TESTING -> FINISHED
 
     # Training Framework
     -> Pick candidate models | FINISHED
-        -> https://arxiv.org/pdf/2208.01618.pdf | https://github.com/huggingface/diffusers/tree/main/examples/textual_inversion
-        -> https://github.com/deep-floyd/IF
+        -> DreamBooth: https://github.com/huggingface/diffusers/tree/main/examples/dreambooth
+    -> Make sure we can use DreamBooth!!! | WIP
+        -> Torch has torch.mps but accelerate won't recognize when run on command line, plz fix | WIP
+            -> Could be shell script path variable issue or env variable issue?
+              
     -> Build Training framework | TODO
     -> Install and Read Tutorials + figure out how to train each -> write template | TODO
     -> Save resized and padded images of appropriate sizes per model type to be tried | TODO
