@@ -1,7 +1,7 @@
 LIFE CYCLE: TODO -> WIP -> DONE -> TESTING -> FINISHED
 
 
-1. Train Lobster ART model - try various existing text to image approaches
+1. Train Lab Rat model - try various existing text to image approaches
 
     # Data Preparation
     -> Tag-line generation
@@ -52,8 +52,8 @@ LIFE CYCLE: TODO -> WIP -> DONE -> TESTING -> FINISHED
 
 
  -----
-LobsterART goal ->
-1) Input Text and what not but eventually it needs to be able to output image much like that of lobster ART style 
+Lab Rat goal ->
+1) Input Text and what not but eventually it needs to be able to output image much like that of seafood art 
     but support many textual styles
 2) 
 
@@ -72,7 +72,7 @@ LobsterART goal ->
 
 
 ### Wht am I building here
-# 1) Model that keeps creating cool lobster ART - save it so others can use it as well
+# 1) Lab Rat Model - save it so others can use it as well
 # 2) Model that creates poison pill images (reverse engineering nightshade ya know)
 # 3) Make sure that poison model stays fairly pvt unless it sorta works, 
     insted offer some endpoints or some kind of demo/usability channels for it
