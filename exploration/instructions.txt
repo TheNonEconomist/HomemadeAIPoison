@@ -39,7 +39,7 @@ LIFE CYCLE: TODO -> WIP -> DONE -> TESTING -> FINISHED
     # Training
     
     -> Test for robustness: Prob just could eyeball it (half a day just tweaking shit)
-    -> Maybe even get underground lobs to describe some of the images in their own way (who knows how long - let's try try when they do it)
+    -> maybe even get ppl to do some cool RLHF stuff
 
 2. Train poisoning model - VAE, GAN, DIFFUSION
     -> Study about the effect of how poison will behave once resized or should it be poisoned once resized? 
