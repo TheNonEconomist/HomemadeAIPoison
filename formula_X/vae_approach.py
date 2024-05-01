@@ -150,8 +150,10 @@ class Autoencoder(Model):
         for layer in self.__encoder:
             x = layer(x)
         if self.__variational:
-            z_mean, z_log_var = tf.split(x, num_or_size_splits=2, axis=1)
-            return z_mean, z_log_var
+            z_mean = self.__dense_mean
+            z_log_var = self.__dense_log_var
+            z = self.__sampling([z_mean, z_log_var])
+            return z
         else:
             return x
 
@@ -163,9 +165,9 @@ class Autoencoder(Model):
     def call(self, inputs):
         z = Input(shape=self.__input_dim)(inputs)
         if self.__variational:
-            z_mean, z_log_var = self.encode(inputs)
-            z = self.__sampling([z_mean, z_log_var])
-            z = self.decode(z)
+            z_mean = self.__dense_mean(x)
+            z_log_var = self.__dense_log_var(x)
+            return z_mean, z_log_var
         else:
             x = self.encode(inputs)
             z = self.decode(z)
@@ -177,7 +179,7 @@ class Autoencoder(Model):
 
 class ConvAutoencoder(Model):
     def __init__(self, input_dim, intermediate_dim_scaling_rate, input_to_waist_ratio,
-                 add_max_pooling: bool = True, flat_waist: bool = True,
+                 add_max_pooling: bool = True, flat_waist: bool = False,
                  add_reconstruction_loss: bool = True, variational: bool = True):
         super(ConvAutoencoder, self).__init__()
 
@@ -206,29 +208,24 @@ class ConvAutoencoder(Model):
 
 
         # Encoder Network
-        self.__encoder = [] # TODO: wut do wif variational?
+        self.__encoder = [] 
         if self.__add_max_pooling: # Add max pooling
-            for hidden_layer_dim in self.__hidden_layer_dimensions:
+            for hidden_layer_dim in reversed(self.__hidden_layer_dimensions):
                 self.__encoder.append(
-                    Conv2D(hidden_layer_dim, (3,3), activation='relu', padding="same")
+                    Conv2D(hidden_layer_dim, (3,3), strides=2, activation='relu', padding="same")
                 )
                 self.__encoder.append(
                     MaxPooling2D((2, 2), padding="same")
                 )
         else:
             self.__encoder = [
-                Conv2D(hidden_layer_dim, activation='relu') for hidden_layer_dim in self.__hidden_layer_dimensions
+                Conv2D(hidden_layer_dim, (3,3), strides=2, activation='relu') for hidden_layer_dim in reversed(self.__hidden_layer_dimensions)
                 ] 
         if self.__flat_waist:
             self.__encoder.extend([
                 Flatten(), Dense(self.__latent_dim + self.__latent_dim)
             ])
         
-        # TODO: ???
-        # if self.__variational:
-        #     self.__dense_mean = Dense(self.__latent_dim)
-        #     self.__dense_log_var = Dense(self.__latent_dim)
-        #     self.__sampling = Lambda(self.sampling_fn)
 
         # Decoder Network
         self.__decoder = []
@@ -239,9 +236,9 @@ class ConvAutoencoder(Model):
                 Reshape(target_shape=(7, 7, 32))
             ]
         self.__decoder.extend([
-            Conv2DTranspose(hidden_layer_dim, activation='relu') for hidden_layer_dim in reversed(self.__hidden_layer_dimensions)
+            Conv2DTranspose(hidden_layer_dim, (3,3), 2, activation='relu') for hidden_layer_dim in self.__hidden_layer_dimensions
             ])
-        self.__output = Conv2D(self.__input_dim, (3, 3), activation='sigmoid', padding="same")
+        self.__output = Conv2D(1, (3, 3), activation='sigmoid', padding="same")
 
     def sampling_fn(self, args): # only used when variational is True
         z_mean, z_log_var = args
@@ -257,10 +254,8 @@ class ConvAutoencoder(Model):
     def encode(self, x):
         for layer in self.__encoder:
             x = layer(x)
-        if self.__varational: # TODO:
-            pass
-            z_mean = self.__dense_mean(x)
-            z_log_var = self.__dense_log_var(x)
+        if self.__variational: 
+            z_mean, z_log_var = tf.split(x, num_or_size_splits=2, axis=1)
             return z_mean, z_log_var
         else:
             return x
@@ -270,32 +265,16 @@ class ConvAutoencoder(Model):
             z = layer(z)
         return self.__output(z)
 
+
     def call(self, inputs):
-        z = Input(shape=self.__input_dim)(inputs)
-        if self.__variational: # TODO:
-            z_mean, z_log_var = self.encode(inputs)
-            z = self.reparameterize(z_mean, z_log_var)
-            x_logit = self.decode(z)
-            
-            cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(
-                logits=x_logit, labels=input
-                )
-            logpx_z = -tf.reduce_sum(cross_entropy, axis=[1,2,3])
-            logpz = log_normal_pdf(z, 0, 0)
-            logqz_x = log_normal_pdf(z, z_mean, z_log_var)
-            return -tf.reduce_mean(logpx_z + logpz - logqz_x)
+        # inputs = InputLayer(input_shape=self.__input_dim)(input)
+        x = self.encode(inputs)
+        return self.decode(x)
 
-        else:
-            z = self.encode(inputs)
-            z = self.decode(z)
-
-        self.add_loss(reconstruction_loss)
-        self.add_loss(kl_loss)
-
-        return z
 
 def main(args):
     input_dim = None
+
     # Grab resized photos
     X_resized_train, Y_resized_train, X_resized_test = [], [], []
     y_names = set()
@@ -303,6 +282,7 @@ def main(args):
         file_path = os.path.join(POISON_PIC_LOCATION + RESIZED_POISONED_PIC_FILE_NAME, file)
         if file_path.split(".")[-1] in ok_pic_formats:
             pic_name = file_path.split("/")[-1]
+            pic_name = pic_name[:pic_name.find("nightshade")][:pic_name.find("resized")]
             y_names.add(pic_name)
             image = img.import_image(file_path)
             image = img.resize_image(image, args.new_width, args.new_height)
@@ -315,10 +295,14 @@ def main(args):
             image = img.import_image(file_path)
             image = img.resize_image(image, args.new_width, args.new_height)
             input_dim = image.shape
-            if pic_name in y_names:
-                X_resized_train.append(image)
+            for y_name in y_names:
+                if y_name in pic_name:
+                    X_resized_train.append(image)
+                    break
             else:
                 X_resized_test.append(image)
+    X_resized_train, Y_resized_train, X_resized_test = np.asarray(X_resized_train), np.asarray(Y_resized_train), np.asarray(X_resized_test)
+    print(input_dim)
     
     # Grab padded photos
     # X_padded, Y_padded = [], []

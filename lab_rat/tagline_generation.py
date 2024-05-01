@@ -1,6 +1,6 @@
 
 import os
-from image_resizing import *
+from X.image_resizing import *
 from dotenv import load_dotenv
 import argparse
 import json

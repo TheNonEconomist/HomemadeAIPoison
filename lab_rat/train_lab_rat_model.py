@@ -1,4 +1,4 @@
-from image_resizing import *
+from X.image_resizing import *
 import os
 from dotenv import load_dotenv
 from huggingface_hub import snapshot_download
