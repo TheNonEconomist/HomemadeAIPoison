@@ -283,11 +283,14 @@ def main(args):
         if file_path.split(".")[-1] in ok_pic_formats:
             pic_name = file_path.split("/")[-1]
             pic_name = pic_name[:pic_name.find("nightshade")][:pic_name.find("resized")]
+            if pic_name[-1] == "-":
+                pic_name = pic_name[:-1]
             y_names.add(pic_name)
             image = img.import_image(file_path)
             image = img.resize_image(image, args.new_width, args.new_height)
             Y_resized_train.append(image)
     
+    x_train_pics = set()
     for file in os.listdir(REGULAR_PIC_LOCATION + RESIZED_REGULAR_PIC_FILE_NAME):
         file_path = os.path.join(REGULAR_PIC_LOCATION + RESIZED_REGULAR_PIC_FILE_NAME, file)
         if file_path.split(".")[-1] in ok_pic_formats:
@@ -297,6 +300,7 @@ def main(args):
             input_dim = image.shape
             for y_name in y_names:
                 if y_name in pic_name:
+                    x_train_pics.add(pic_name)
                     X_resized_train.append(image)
                     break
             else:

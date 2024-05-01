@@ -76,12 +76,3 @@ Lab Rat goal ->
 # 2) Model that creates poison pill images (reverse engineering nightshade ya know)
 # 3) Make sure that poison model stays fairly pvt unless it sorta works, 
     insted offer some endpoints or some kind of demo/usability channels for it
-
-
-
------ GOALS
-4/17: FINISH GENERATING taglines + build training framework
-4/18: Start Running training experiments + While experiments are running, start architecting poison model
-4/19: Dependoing on experiment results, either keep iterating | OR | Start poisoning our model! -> need poisoned model nd unpoisoned model
-4/20-4/21: Hackathon -> Either buidl foundational models and show a demo case or use the time to start working on some kind of provenance as experience layer
-4/22: Check on progress onf model poisoning
