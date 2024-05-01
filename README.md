@@ -6,14 +6,22 @@ Hey your friend is just showing off some AI bot they made. And you really wanna 
 
 I mean HELP them LEARN better AI Security and safety practices so they can DEPLOY safer and more robust AI. 😊 😛 🤪
 
-## What Do?
-Prepare some lab rats... 🐁🐁🐁 I mean AI models to poison...
-
 ## Problem:
 Most AI poison pill tools don't publicize their code. Sure you can randomize your data or add adversarial examples or whatever but what if you're just some person who don't really know how AI works?
 
+## Ok What is this really?
+Telegram game where ppl can deploy their own models and others can poison pill it. 
+
+Or an NFT project for super secretive group of whales. Who knows
+
+Could be both or neither. Who knows.
+
 ## How Do:
-Reverse Engineer some AI poison pills
+Reverse Engineer some AI poison pills. 
+
+Prepare some lab rats... 🐁🐁🐁 I mean AI models to poison...
+
+Deploy on Telegram... OR Launch NFT? You'll never know
 
 ## Tools?
 Good old-fashioned reverse engineering skills.
