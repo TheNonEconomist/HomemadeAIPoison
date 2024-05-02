@@ -38,7 +38,7 @@ def nearest_lower_exponent_of_2(n):
 
 def reconstruction_loss(y_true, y_pred):
     # Choose an appropriate loss based on your data:
-    return tf.mean(tf.square(y_true - y_pred))  # Example: Mean Squared Error
+    return tf.reduce_mean(tf.square(y_true - y_pred))  # Example: Mean Squared Error
 
 def kl_loss(z_mean, z_log_var):
     return -0.5 * tf.reduce_sum(1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var), axis=1)
@@ -98,20 +98,19 @@ class AutoEncoderHiddenLayerDimensionIterator: # Helps you iterate thru automati
 
 
 class Autoencoder(Model):
-    def __init__(self, input_dim, intermediate_dim_scaling_rate, input_to_waist_ratio,
+    def __init__(self, input_dim, h1_dim, intermediate_dim_scaling_rate, input_to_waist_ratio,
                  add_reconstruction_loss: bool = True, variational: bool = True):
         super(Autoencoder, self).__init__()
 
         self.__input_dim = input_dim
 
         # higher to lower number, reverse this on the decoder side
-        hidden_layer_1_dim = nearest_lower_exponent_of_2(self.__input_dim[0])
-        print(hidden_layer_1_dim)
-        self.__hidden_layer_dimensions = [nearest_lower_exponent_of_2(self.__input_dim[0])]
+        self.__h1_dim = nearest_lower_exponent_of_2(h1_dim)
+        self.__hidden_layer_dimensions = [self.__h1_dim]
         self.__hidden_layer_dimensions.extend(
             [
                 hidden_dim for hidden_dim in AutoEncoderHiddenLayerDimensionIterator(
-                    current_dim=hidden_layer_1_dim, input_dim=self.__input_dim[0], 
+                    current_dim=self.__h1_dim, input_dim=self.__input_dim[0], 
                     scaling_rate=intermediate_dim_scaling_rate, input_to_waist_ratio=input_to_waist_ratio
                 )
             ]
@@ -177,22 +176,18 @@ class Autoencoder(Model):
 
         return z
 
-class ConvAutoencoder(Model):
-    def __init__(self, input_dim, intermediate_dim_scaling_rate, input_to_waist_ratio,
-                 add_max_pooling: bool = True, flat_waist: bool = False,
-                 add_reconstruction_loss: bool = True, variational: bool = True):
-        super(ConvAutoencoder, self).__init__()
-
+class ConvAutoencoderGenerator():
+    def __init__(self, input_dim, h1_dim, intermediate_dim_scaling_rate, input_to_waist_ratio,
+                 add_max_pooling: bool = True, flat_waist: bool = False, variational: bool = True):
         self.__input_dim = input_dim
 
         # higher to lower number, reverse this on the decoder side
-        hidden_layer_1_dim = nearest_lower_exponent_of_2(self.__input_dim[0])
-        print(hidden_layer_1_dim)
-        self.__hidden_layer_dimensions = [nearest_lower_exponent_of_2(self.__input_dim[0])]
+        self.__h1_dim = nearest_lower_exponent_of_2(h1_dim)
+        self.__hidden_layer_dimensions = [self.__h1_dim]
         self.__hidden_layer_dimensions.extend(
             [
                 hidden_dim for hidden_dim in AutoEncoderHiddenLayerDimensionIterator(
-                    current_dim=hidden_layer_1_dim, input_dim=self.__input_dim[0], 
+                    current_dim=self.__h1_dim, input_dim=self.__input_dim[0], 
                     scaling_rate=intermediate_dim_scaling_rate, input_to_waist_ratio=input_to_waist_ratio
                 )
             ]
@@ -201,46 +196,11 @@ class ConvAutoencoder(Model):
         # print(self.__hidden_layer_dimensions)
         self.__latent_dim = self.__hidden_layer_dimensions[-1]
 
-        self.__add_reconstruction_loss = add_reconstruction_loss
         self.__variational = variational
         self.__add_max_pooling = add_max_pooling
         self.__flat_waist = flat_waist
 
-
-        # Encoder Network
-        self.__encoder = [] 
-        if self.__add_max_pooling: # Add max pooling
-            for hidden_layer_dim in reversed(self.__hidden_layer_dimensions):
-                self.__encoder.append(
-                    Conv2D(hidden_layer_dim, (3,3), strides=2, activation='relu', padding="same")
-                )
-                self.__encoder.append(
-                    MaxPooling2D((2, 2), padding="same")
-                )
-        else:
-            self.__encoder = [
-                Conv2D(hidden_layer_dim, (3,3), strides=2, activation='relu') for hidden_layer_dim in reversed(self.__hidden_layer_dimensions)
-                ] 
-        if self.__flat_waist:
-            self.__encoder.extend([
-                Flatten(), Dense(self.__latent_dim + self.__latent_dim)
-            ])
-        
-
-        # Decoder Network
-        self.__decoder = []
-        if self.__flat_waist:
-            self.__decoder = [
-                InputLayer(input_shape=(self.__latent_dim,)), 
-                Dense(units=7*7*32, activation="relu"),
-                Reshape(target_shape=(7, 7, 32))
-            ]
-        self.__decoder.extend([
-            Conv2DTranspose(hidden_layer_dim, (3,3), 2, activation='relu') for hidden_layer_dim in self.__hidden_layer_dimensions
-            ])
-        self.__output = Conv2D(1, (3, 3), activation='sigmoid', padding="same")
-
-    def sampling_fn(self, args): # only used when variational is True
+    def sampling_fn(self, z_mean, z_log_var): # only used when variational is True
         z_mean, z_log_var = args
         batch = tf.shape(z_mean)[0]
         dim = tf.int_shape(z_mean)[1]
@@ -252,8 +212,18 @@ class ConvAutoencoder(Model):
         return eps * tf.exp(z_log_var * .5) + z_mean
 
     def encode(self, x):
-        for layer in self.__encoder:
-            x = layer(x)
+        if self.__add_max_pooling: # Add max pooling
+            for hidden_layer_dim in self.__hidden_layer_dimensions:
+                x = Conv2D(hidden_layer_dim, (3,3), activation='relu', padding="same")(x)
+                x = MaxPooling2D((2, 2), padding="same")(x)
+        else:
+            for hidden_layer_dim in self.__hidden_layer_dimensions:
+                x = Conv2D(hidden_layer_dim, (3,3), activation='relu')(x) 
+
+        if self.__flat_waist:
+            x = Flatten()(x)
+            x = Dense(self.__latent_dim,  activation="relu")(x)
+
         if self.__variational: 
             z_mean, z_log_var = tf.split(x, num_or_size_splits=2, axis=1)
             return z_mean, z_log_var
@@ -261,15 +231,31 @@ class ConvAutoencoder(Model):
             return x
 
     def decode(self, z):
-        for layer in self.__decoder:
-            z = layer(z)
-        return self.__output(z)
+        if self.__flat_waist:
+            z = InputLayer(input_shape=(self.__latent_dim,))(z)
+            z = Dense(self.__latent_dim, activation="relu")(z)
+            if self.__add_max_pooling:
+                factorization_count = len(self.__hidden_layer_dimensions)//2
+            else:
+                factorization_count = len(self.__hidden_layer_dimensions)
+            reshape_size = self.__input_dim[0]//np.exp(factorization_count, 2)
+            z = Reshape(target_shape=(reshape_size, reshape_size, self.__latent_dim))(z)
+            
+        for hidden_layer_dim in reversed(self.__hidden_layer_dimensions):
+            z = Conv2DTranspose(hidden_layer_dim, (3,3), 2, activation='relu') (z)
+        return z
 
 
     def call(self, inputs):
-        # inputs = InputLayer(input_shape=self.__input_dim)(input)
-        x = self.encode(inputs)
-        return self.decode(x)
+        inputs = InputLayer(input_shape=self.__input_dim)(inputs)
+        if self.__variational:
+            x_mean, x_log_var = self.encode(inputs)
+            x = self.reparameterize(x_mean, x_log_var)
+        else:
+            x = self.encode(inputs)
+        y = self.decode(x)
+        y = Conv2D(self.__input_dim[-1], (3, 3), activation='sigmoid', padding="same")(y) # Output layer
+        return Model(inputs, y)
 
 
 def main(args):
@@ -306,6 +292,9 @@ def main(args):
             else:
                 X_resized_test.append(image)
     X_resized_train, Y_resized_train, X_resized_test = np.asarray(X_resized_train), np.asarray(Y_resized_train), np.asarray(X_resized_test)
+    X_resized_train = X_resized_train/255
+    Y_resized_train = Y_resized_train/255
+    X_resized_test = X_resized_test/255 # Normalize
     print(input_dim)
     
     # Grab padded photos
@@ -324,60 +313,53 @@ def main(args):
     #         image = img.import_image(file_path)
     #         Y_padded.append(X_padded)
 
-    exp_map = {
-        # "ae_kl_only": {
-        #     "add_reconstruction_loss": False,
-        #     "variational": False
-        # },
-        # "vae_kl_only": {
-        #     "add_reconstruction_loss": False, 
-        #     "variational": True
-        # },
-        "ae_kl_and_rl": {
-            "add_reconstruction_loss": True, 
-            "variational": False
-        },
-        "vae_kl_and_rl": {
-            "add_reconstruction_loss": True, 
-            "variational": True
-        }
-    }
     
+    # A Model is fully parametrized by - epochs, scaling rate, input to waist ratio, hidden_dim_1
     
-    for exp_type, params in exp_map.items():
-        model = ConvAutoencoder(
-                input_dim, intermediate_dim_scaling_rate=0.7, input_to_waist_ratio=4, 
-                add_reconstruction_loss=params["add_reconstruction_loss"], variational=params["variational"]
-            )
-        if params["variational"]:
-            optimizer = tf.keras.optimizers.Adam(1e-4)
-            print(model.summary())
-            for epoch in range(1, args.epochs + 1):
-                for train_x in X_resized_train:
-                    train_step(model, train_x, optimizer)
+    model = ConvAutoencoderGenerator(
+                input_dim, args.hidden_dim_1,
+                intermediate_dim_scaling_rate=args.intermediate_dim_scaling_rate, 
+                input_to_waist_ratio=args.input_to_waist_ratio, 
+                add_max_pooling=args.add_max_pooling,
+                add_reconstruction_loss=True, 
+                flat_waist=args.flat_waist,
+                variational=args.variational
+        )
+    if args.variational:
+        pass
+        # optimizer = tf.keras.optimizers.Adam(1e-4)
+        # print(model.summary())
+        # for epoch in range(1, args.epochs + 1):
+        #     for train_x in X_resized_train:
+        #         train_step(model, train_x, optimizer)
 
-                loss = tf.keras.metrics.Mean()
-                for test_x in X_resized_test:
-                    loss(CVAE_loss(model, test_x))
-                elbo = -loss.result()
+        #     loss = tf.keras.metrics.Mean()
+        #     for test_x in X_resized_test:
+        #         loss(CVAE_loss(model, test_x))
+        #     elbo = -loss.result()
 
-        else:
-            model.compile(
-                optimizer='adam', loss=MeanSquaredError()
-            )
+    else:
+        model.compile(
+            optimizer='adam', loss=MeanSquaredError()
+        )
 
-            print(model.summary())
+        print(model.summary())
+        for epoch_count in range(args.steps, args.epochs+1, args.steps):
             model.fit(
                 x=X_resized_train,
                 y=Y_resized_train,
-                epochs=args.epochs,
-                validation_split=0.0
+                initial_epoch=epoch_count - args.steps,
+                epochs=epoch_count,
+                validation_split=0.33
             )
-        y_hat = model.predict(X_resized_test)
+            y_hat = model.predict(X_resized_test)*255
 
-        save_path = HOMEMADE_POISON_PIC_LOCATION + RESIZED_POISONED_PIC_FILE_NAME
-        for i, y in enumerate(y_hat):
-            cv2.imwrite(save_path + exp_type + "/pic{}".format(i), y)
+            save_path = HOMEMADE_POISON_PIC_LOCATION + RESIZED_POISONED_PIC_FILE_NAME
+            for i, y in enumerate(y_hat):
+                cv2.imwrite(save_path + "AE_h1dim={}_epochs={}_intermediate_dim_scaling_rate={}_input_to_waist_ratio={}_add_max_pooling={}_flat_waist={}".format(
+                    args.hidden_dim_1, epoch_count, args.intermediate_dim_scaling_rate, args.input_to_waist_ratio, args.add_max_pooling, args.flat_waist
+                    ) + "/pic{}".format(i), y
+                )
 
 
     # print(exp)
@@ -388,5 +370,15 @@ if __name__ == "__main__":
     args.add_argument("-i", "--new_height", type=int, help="height of pic to resize to", default=512)
     args.add_argument("-w", "--new_width", type=int, help="width of pic to resize to", default=512)
 
-    args.add_argument("-e", "--epochs", type=int, help="# of epochs")
+    hyperparams = args.add_argument_group("hyperparams")
+    hyperparams.add_argument("-e", "--epochs", type=int, help="# of epochs", default=500)
+    hyperparams.add_argument("-s", "--steps", type=int, help="# of epochs to run each before saving intermediate results", default=50)
+    hyperparams.add_argument("-d", "--hidden_dim_1", type=int, help="", default=128)
+
+    hyperparams.add_argument("-scale", "--intermediate_dim_scaling_rate", type=float, help="rate at which to scale down dim size", default=0.5)
+    hyperparams.add_argument("-waist", "--input_to_waist_ratio", type=float, help="input/waist size", default=16)
+    hyperparams.add_argument("-m", "--add_max_pooling", action="store_true", help="should u add max pooling on encoder?")
+    hyperparams.add_argument("-f", "--flat_waist", action="store_true", help="should the waist be flattened?")
+    hyperparams.add_argument("-v", "--variational", action="store_true", help="make it variational or nah?")
     main(args.parse_args())
+
