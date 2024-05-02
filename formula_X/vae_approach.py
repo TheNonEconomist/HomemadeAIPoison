@@ -98,8 +98,7 @@ class AutoEncoderHiddenLayerDimensionIterator: # Helps you iterate thru automati
 
 
 class Autoencoder(Model):
-    def __init__(self, input_dim, h1_dim, intermediate_dim_scaling_rate, input_to_waist_ratio,
-                 add_reconstruction_loss: bool = True, variational: bool = True):
+    def __init__(self, input_dim, h1_dim, intermediate_dim_scaling_rate, input_to_waist_ratio, variational: bool = True):
         super(Autoencoder, self).__init__()
 
         self.__input_dim = input_dim
@@ -119,7 +118,6 @@ class Autoencoder(Model):
         print(self.__hidden_layer_dimensions)
         self.__latent_dim = self.__hidden_layer_dimensions[-1]
 
-        self.__add_reconstruction_loss = add_reconstruction_loss
         self.__variational = variational
 
         # Encoder Network
@@ -176,8 +174,10 @@ class Autoencoder(Model):
 
         return z
 
+### This actually ends up denoising the pictures to remove the poison
 class ConvAutoencoderGenerator():
     def __init__(self, input_dim, h1_dim, intermediate_dim_scaling_rate, input_to_waist_ratio,
+                 activation: str,
                  add_max_pooling: bool = True, flat_waist: bool = False, variational: bool = True):
         self.__input_dim = input_dim
 
@@ -195,6 +195,8 @@ class ConvAutoencoderGenerator():
 
         # print(self.__hidden_layer_dimensions)
         self.__latent_dim = self.__hidden_layer_dimensions[-1]
+
+        self.__activation = activation
 
         self.__variational = variational
         self.__add_max_pooling = add_max_pooling
@@ -214,15 +216,15 @@ class ConvAutoencoderGenerator():
     def encode(self, x):
         if self.__add_max_pooling: # Add max pooling
             for hidden_layer_dim in self.__hidden_layer_dimensions:
-                x = Conv2D(hidden_layer_dim, (3,3), activation='relu', padding="same")(x)
+                x = Conv2D(hidden_layer_dim, (3,3), activation=self.__activation, padding="same")(x)
                 x = MaxPooling2D((2, 2), padding="same")(x)
         else:
             for hidden_layer_dim in self.__hidden_layer_dimensions:
-                x = Conv2D(hidden_layer_dim, (3,3), activation='relu')(x) 
+                x = Conv2D(hidden_layer_dim, (3,3), activation=self.__activation, padding="same")(x) 
 
         if self.__flat_waist:
             x = Flatten()(x)
-            x = Dense(self.__latent_dim,  activation="relu")(x)
+            x = Dense(self.__latent_dim,  activation=self.__activation)(x)
 
         if self.__variational: 
             z_mean, z_log_var = tf.split(x, num_or_size_splits=2, axis=1)
@@ -233,7 +235,7 @@ class ConvAutoencoderGenerator():
     def decode(self, z):
         if self.__flat_waist:
             z = InputLayer(input_shape=(self.__latent_dim,))(z)
-            z = Dense(self.__latent_dim, activation="relu")(z)
+            z = Dense(self.__latent_dim, activation=self.__activation)(z)
             if self.__add_max_pooling:
                 factorization_count = len(self.__hidden_layer_dimensions)//2
             else:
@@ -242,12 +244,16 @@ class ConvAutoencoderGenerator():
             z = Reshape(target_shape=(reshape_size, reshape_size, self.__latent_dim))(z)
             
         for hidden_layer_dim in reversed(self.__hidden_layer_dimensions):
-            z = Conv2DTranspose(hidden_layer_dim, (3,3), 2, activation='relu') (z)
+            if self.__add_max_pooling:
+                strides = 2
+            else:
+                strides=1
+            z = Conv2DTranspose(hidden_layer_dim, (3,3), strides, activation=self.__activation) (z)
         return z
 
 
     def call(self, inputs):
-        inputs = InputLayer(input_shape=self.__input_dim)(inputs)
+        # inputs = InputLayer(input_shape=self.__input_dim)(inputs)
         if self.__variational:
             x_mean, x_log_var = self.encode(inputs)
             x = self.reparameterize(x_mean, x_log_var)
@@ -258,6 +264,8 @@ class ConvAutoencoderGenerator():
         return Model(inputs, y)
 
 
+# TODO: variational stuff is not tested. - tbh might not need to yet
+# this will prob eventually be some sort of a template code that can be reused - so parametrizing things well is pretty important
 def main(args):
     input_dim = None
 
@@ -375,6 +383,7 @@ if __name__ == "__main__":
     hyperparams.add_argument("-s", "--steps", type=int, help="# of epochs to run each before saving intermediate results", default=50)
     hyperparams.add_argument("-d", "--hidden_dim_1", type=int, help="", default=128)
 
+    hyperparams.add_argument("-a", "--activation", type=str, help="str or relu", default="linear")
     hyperparams.add_argument("-scale", "--intermediate_dim_scaling_rate", type=float, help="rate at which to scale down dim size", default=0.5)
     hyperparams.add_argument("-waist", "--input_to_waist_ratio", type=float, help="input/waist size", default=16)
     hyperparams.add_argument("-m", "--add_max_pooling", action="store_true", help="should u add max pooling on encoder?")
