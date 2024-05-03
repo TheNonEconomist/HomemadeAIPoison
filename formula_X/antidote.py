@@ -271,7 +271,7 @@ def main(args):
     input_dim = None
 
     # Grab resized photos
-    X_resized_train, Y_resized_train, X_resized_test = [], [], []
+    regular_pic_train, poisoned_pics_train, regular_pics_test = [], [], []
     y_names = set()
     for file in os.listdir(POISON_PIC_LOCATION + RESIZED_POISONED_PIC_FILE_NAME):
         file_path = os.path.join(POISON_PIC_LOCATION + RESIZED_POISONED_PIC_FILE_NAME, file)
@@ -283,7 +283,7 @@ def main(args):
             y_names.add(pic_name)
             image = img.import_image(file_path)
             image = img.resize_image(image, args.new_width, args.new_height)
-            Y_resized_train.append(image)
+            poisoned_pics_train.append(image)
     
     x_train_pics = set()
     for file in os.listdir(REGULAR_PIC_LOCATION + RESIZED_REGULAR_PIC_FILE_NAME):
@@ -296,14 +296,14 @@ def main(args):
             for y_name in y_names:
                 if y_name in pic_name:
                     x_train_pics.add(pic_name)
-                    X_resized_train.append(image)
+                    regular_pic_train.append(image)
                     break
             else:
-                X_resized_test.append(image)
-    X_resized_train, Y_resized_train, X_resized_test = np.asarray(X_resized_train), np.asarray(Y_resized_train), np.asarray(X_resized_test)
-    X_resized_train = X_resized_train/255
-    Y_resized_train = Y_resized_train/255
-    X_resized_test = X_resized_test/255 # Normalize
+                regular_pics_test.append(image)
+    regular_pic_train, poisoned_pics_train, regular_pics_test = np.asarray(regular_pic_train), np.asarray(poisoned_pics_train), np.asarray(regular_pics_test)
+    regular_pic_train = regular_pic_train/255
+    poisoned_pics_train = poisoned_pics_train/255
+    regular_pics_test = regular_pics_test/255 # Normalize
     print(input_dim)
     
     # Grab padded photos
@@ -336,6 +336,18 @@ def main(args):
         )
     
     model = model.call(Input(shape=input_dim))
+    model_type = args.model_type
+    if model_type == "antidote":
+        x = poisoned_pics_train
+        y = regular_pic_train
+        x_pred = poisoned_pics_train
+    elif model_type == "poison":
+        x = regular_pic_train
+        y = poisoned_pics_train
+        x_pred = regular_pics_test
+    else:
+        raise ValueError("model type {} is nooot supported".format(model_type))
+    
     if args.variational:
         pass
         # optimizer = tf.keras.optimizers.Adam(1e-4)
@@ -357,8 +369,8 @@ def main(args):
         print(model.summary())
         for epoch_count in range(args.steps, args.epochs+1, args.steps):
             model.fit(
-                x=X_resized_train,
-                y=Y_resized_train,
+                x=x,
+                y=y,
                 initial_epoch=epoch_count - args.steps,
                 epochs=epoch_count,
                 validation_split=0.33
@@ -367,13 +379,14 @@ def main(args):
             model_name = "AE_h1dim={}_epochs={}_intermediate_dim_scaling_rate={}_input_to_waist_ratio={}_add_max_pooling={}_flat_waist={}".format(
                     args.hidden_dim_1, epoch_count, args.intermediate_dim_scaling_rate, args.input_to_waist_ratio, args.add_max_pooling, args.flat_waist
                     )
-            model.save(MODEL_PATH + "/antidote/{}.h5".format(model_name))
-            y_hat = model.predict(X_resized_test)*255
+            
+            model.save(MODEL_PATH + "/{}/{}.keras".format(model_type, model_name))
+            y_hat = model.predict(x_pred)*255
             y_hat = y_hat.astype(np.uint8)
 
             save_path = HOMEMADE_POISON_PIC_LOCATION + RESIZED_POISONED_PIC_FILE_NAME
             for i, y in enumerate(y_hat):
-                cv2.imwrite(save_path + model_name + "/pic{}".format(i), y
+                cv2.imwrite(save_path + model_name + "/pic{}.png".format(i), y
                 )
 
 
@@ -382,10 +395,14 @@ def main(args):
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
-    args.add_argument("-i", "--new_height", type=int, help="height of pic to resize to", default=512)
-    args.add_argument("-w", "--new_width", type=int, help="width of pic to resize to", default=512)
+    model_config = args.add_argument_group("model_config")
+
+    model_config.add_argument("-i", "--new_height", type=int, help="height of pic to resize to", default=512)
+    model_config.add_argument("-w", "--new_width", type=int, help="width of pic to resize to", default=512)
+    model_config.add_argument("-t", "--model_type", type=str, help="antidote or poison", default="antidote")
 
     hyperparams = args.add_argument_group("hyperparams")
+
     hyperparams.add_argument("-e", "--epochs", type=int, help="# of epochs", default=350)
     hyperparams.add_argument("-s", "--steps", type=int, help="# of epochs to run each before saving intermediate results", default=50)
     hyperparams.add_argument("-d", "--hidden_dim_1", type=int, help="", default=128)
@@ -396,5 +413,6 @@ if __name__ == "__main__":
     hyperparams.add_argument("-m", "--add_max_pooling", action="store_true", help="should u add max pooling on encoder?")
     hyperparams.add_argument("-f", "--flat_waist", action="store_true", help="should the waist be flattened?")
     hyperparams.add_argument("-v", "--variational", action="store_true", help="make it variational or nah?")
+
     main(args.parse_args())
 
