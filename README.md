@@ -8,7 +8,7 @@ I mean HELP them LEARN better AI Security and safety practices so they can DEPLO
 
 ## Problem:
 Most AI poison pill tools don't publicize their code. Sure you can randomize your data or add adversarial examples or whatever but what if you're just some person who don't really know how AI works?
-
+w
 ## Ok What is this really?
 Telegram game where ppl can deploy their own models and others can poison pill it. 
 

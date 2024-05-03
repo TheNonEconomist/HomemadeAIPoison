@@ -26,6 +26,7 @@ PADDED_REGULAR_PIC_FILE_NAME = os.getenv("PADDED_REGULAR_PIC_FILE_NAME")
 RESIZED_POISONED_PIC_FILE_NAME = os.getenv("RESIZED_POISONED_PIC_FILE_NAME")
 PADDED_POISONED_PIC_FILE_NAME = os.getenv("PADDED_POISONED_PIC_FILE_NAME")
 
+MODEL_PATH = os.getenv("MODEL_PATH") # Save'em models
 
 def nearest_lower_exponent_of_2(n):
     if n < 1:
@@ -248,7 +249,7 @@ class ConvAutoencoderGenerator():
                 strides = 2
             else:
                 strides=1
-            z = Conv2DTranspose(hidden_layer_dim, (3,3), strides, activation=self.__activation) (z)
+            z = Conv2DTranspose(hidden_layer_dim, (3,3), strides, activation=self.__activation, padding='same') (z)
         return z
 
 
@@ -329,10 +330,12 @@ def main(args):
                 intermediate_dim_scaling_rate=args.intermediate_dim_scaling_rate, 
                 input_to_waist_ratio=args.input_to_waist_ratio, 
                 add_max_pooling=args.add_max_pooling,
-                add_reconstruction_loss=True, 
                 flat_waist=args.flat_waist,
-                variational=args.variational
+                variational=args.variational,
+                activation=args.activation
         )
+    
+    model = model.call(Input(shape=input_dim))
     if args.variational:
         pass
         # optimizer = tf.keras.optimizers.Adam(1e-4)
@@ -360,13 +363,17 @@ def main(args):
                 epochs=epoch_count,
                 validation_split=0.33
             )
+
+            model_name = "AE_h1dim={}_epochs={}_intermediate_dim_scaling_rate={}_input_to_waist_ratio={}_add_max_pooling={}_flat_waist={}".format(
+                    args.hidden_dim_1, epoch_count, args.intermediate_dim_scaling_rate, args.input_to_waist_ratio, args.add_max_pooling, args.flat_waist
+                    )
+            model.save(MODEL_PATH + "/antidote/{}.h5".format(model_name))
             y_hat = model.predict(X_resized_test)*255
+            y_hat = y_hat.astype(np.uint8)
 
             save_path = HOMEMADE_POISON_PIC_LOCATION + RESIZED_POISONED_PIC_FILE_NAME
             for i, y in enumerate(y_hat):
-                cv2.imwrite(save_path + "AE_h1dim={}_epochs={}_intermediate_dim_scaling_rate={}_input_to_waist_ratio={}_add_max_pooling={}_flat_waist={}".format(
-                    args.hidden_dim_1, epoch_count, args.intermediate_dim_scaling_rate, args.input_to_waist_ratio, args.add_max_pooling, args.flat_waist
-                    ) + "/pic{}".format(i), y
+                cv2.imwrite(save_path + model_name + "/pic{}".format(i), y
                 )
 
 
@@ -379,11 +386,11 @@ if __name__ == "__main__":
     args.add_argument("-w", "--new_width", type=int, help="width of pic to resize to", default=512)
 
     hyperparams = args.add_argument_group("hyperparams")
-    hyperparams.add_argument("-e", "--epochs", type=int, help="# of epochs", default=500)
+    hyperparams.add_argument("-e", "--epochs", type=int, help="# of epochs", default=350)
     hyperparams.add_argument("-s", "--steps", type=int, help="# of epochs to run each before saving intermediate results", default=50)
     hyperparams.add_argument("-d", "--hidden_dim_1", type=int, help="", default=128)
 
-    hyperparams.add_argument("-a", "--activation", type=str, help="str or relu", default="linear")
+    hyperparams.add_argument("-a", "--activation", type=str, help="linear or relu", default="linear")
     hyperparams.add_argument("-scale", "--intermediate_dim_scaling_rate", type=float, help="rate at which to scale down dim size", default=0.5)
     hyperparams.add_argument("-waist", "--input_to_waist_ratio", type=float, help="input/waist size", default=16)
     hyperparams.add_argument("-m", "--add_max_pooling", action="store_true", help="should u add max pooling on encoder?")
