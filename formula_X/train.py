@@ -237,6 +237,7 @@ class ConvAutoencoderGenerator():
             return x
 
     def decode(self, z):
+        
         if self.__flat_waist:
             # z = InputLayer(input_shape=(self.__latent_dim,))(z)
             # z = Dense(self.__latent_dim *self.__latent_dim, activation=self.__activation)(z)
