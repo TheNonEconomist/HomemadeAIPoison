@@ -1,6 +1,9 @@
 # from PIL import Image
 import cv2
-import numpy as np
+# import imagehash
+from collections import defaultdict
+import os
+from PIL import Image
 
 # PILLOW
 # def load_image(file_path):
@@ -74,3 +77,31 @@ def resize_and_pad_image(image, new_width, new_height, pad_color=[0, 0, 0]):
 def export_image(image, output_path):
     cv2.imwrite(output_path, image)
 
+
+# def find_duplicates(images_directory): # grab hash of each image and store their path
+#     hashes = defaultdict(list)
+#     # Loop through image files
+#     for image_filename in os.listdir(images_directory):
+#         if image_filename.endswith(("jpg", "jpeg", "webp", "png")):
+#             image_path = os.path.join(images_directory, image_filename)
+#             # Open and convert image to grayscale
+#             # image = import_image(image_path)
+#             image = Image.open(image_path)
+
+#             # Use pHash
+#             h = imagehash.phash(image)
+
+#             # Append image path to hash entry
+#             hashes[h].append(image_path)
+
+#     # Identify duplicates (entries with more than one path)
+#     duplicates = {hash_val: paths for hash_val, paths in hashes.items() if len(paths) > 1}
+#     return duplicates
+
+def handle_duplicates(duplicates):
+    for hash_val, paths in duplicates.items():
+        print(f"Duplicate images for hash {hash_val}:")
+        # Keep the first image, remove others
+        for path in paths[1:]:
+            print(f"Removing {path}")
+            os.remove(path)  # Uncomment this to actually delete the files

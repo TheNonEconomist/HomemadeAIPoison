@@ -21,10 +21,10 @@ REGULAR_PIC_LOCATION = os.getenv("REGULAR_PIC_LOCATION")
 HOMEMADE_POISON_PIC_LOCATION = os.getenv("HOMEMADE_POISON_PIC_LOCATION")
 
 RESIZED_REGULAR_PIC_FILE_NAME = os.getenv("RESIZED_REGULAR_PIC_FILE_NAME")
-PADDED_REGULAR_PIC_FILE_NAME = os.getenv("PADDED_REGULAR_PIC_FILE_NAME")
+# PADDED_REGULAR_PIC_FILE_NAME = os.getenv("PADDED_REGULAR_PIC_FILE_NAME")
 
 RESIZED_POISONED_PIC_FILE_NAME = os.getenv("RESIZED_POISONED_PIC_FILE_NAME")
-PADDED_POISONED_PIC_FILE_NAME = os.getenv("PADDED_POISONED_PIC_FILE_NAME")
+# PADDED_POISONED_PIC_FILE_NAME = os.getenv("PADDED_POISONED_PIC_FILE_NAME")
 
 MODEL_PATH = os.getenv("MODEL_PATH") # Save'em models
 
@@ -183,12 +183,12 @@ class ConvAutoencoderGenerator():
         self.__input_dim = input_dim
 
         # higher to lower number, reverse this on the decoder side
-        self.__h1_dim = nearest_lower_exponent_of_2(h1_dim)
-        self.__hidden_layer_dimensions = [self.__h1_dim]
+        h1_dim = nearest_lower_exponent_of_2(h1_dim)
+        self.__hidden_layer_dimensions = [h1_dim]
         self.__hidden_layer_dimensions.extend(
             [
                 hidden_dim for hidden_dim in AutoEncoderHiddenLayerDimensionIterator(
-                    current_dim=self.__h1_dim, input_dim=self.__input_dim[0], 
+                    current_dim=h1_dim, input_dim=self.__input_dim[0], 
                     scaling_rate=intermediate_dim_scaling_rate, input_to_waist_ratio=input_to_waist_ratio
                 )
             ]
@@ -225,8 +225,11 @@ class ConvAutoencoderGenerator():
 
         if self.__flat_waist:
             x = Flatten()(x)
-            x = Dense(self.__latent_dim,  activation=self.__activation)(x)
+            # print(self.__hidden_layer_dimensions, self.__latent_dim)
+            # x = Dense(self.__latent_dim *self.__latent_dim,  activation=self.__activation)(x)
 
+        # print("###### Encoder Summary")
+        # print(x.summary())
         if self.__variational: 
             z_mean, z_log_var = tf.split(x, num_or_size_splits=2, axis=1)
             return z_mean, z_log_var
@@ -235,13 +238,18 @@ class ConvAutoencoderGenerator():
 
     def decode(self, z):
         if self.__flat_waist:
-            z = InputLayer(input_shape=(self.__latent_dim,))(z)
-            z = Dense(self.__latent_dim, activation=self.__activation)(z)
+            # z = InputLayer(input_shape=(self.__latent_dim,))(z)
+            # z = Dense(self.__latent_dim *self.__latent_dim, activation=self.__activation)(z)
+            # z = Dense(4*self.__latent_dim*4*self.__latent_dim*self.__latent_dim, activation=self.__activation)(z)
             if self.__add_max_pooling:
                 factorization_count = len(self.__hidden_layer_dimensions)//2
+                reshape_size = self.__input_dim[0]//np.power(factorization_count, 2)
             else:
-                factorization_count = len(self.__hidden_layer_dimensions)
-            reshape_size = self.__input_dim[0]//np.exp(factorization_count, 2)
+                # factorization_count = len(self.__hidden_layer_dimensions)
+                reshape_size = self.__input_dim[0]
+            # print(self.__input_dim, factorization_count)
+            
+            print(reshape_size, self.__latent_dim, self.__hidden_layer_dimensions)
             z = Reshape(target_shape=(reshape_size, reshape_size, self.__latent_dim))(z)
             
         for hidden_layer_dim in reversed(self.__hidden_layer_dimensions):
@@ -285,7 +293,7 @@ def main(args):
             image = img.resize_image(image, args.new_width, args.new_height)
             poisoned_pics_train.append(image)
     
-    x_train_pics = set()
+    # x_train_pics = set()
     for file in os.listdir(REGULAR_PIC_LOCATION + RESIZED_REGULAR_PIC_FILE_NAME):
         file_path = os.path.join(REGULAR_PIC_LOCATION + RESIZED_REGULAR_PIC_FILE_NAME, file)
         if file_path.split(".")[-1] in ok_pic_formats:
@@ -295,15 +303,18 @@ def main(args):
             input_dim = image.shape
             for y_name in y_names:
                 if y_name in pic_name:
-                    x_train_pics.add(pic_name)
+                    # x_train_pics.add(pic_name)
                     regular_pic_train.append(image)
                     break
             else:
                 regular_pics_test.append(image)
+    
+    del y_names
+    # Normalize Data
     regular_pic_train, poisoned_pics_train, regular_pics_test = np.asarray(regular_pic_train), np.asarray(poisoned_pics_train), np.asarray(regular_pics_test)
     regular_pic_train = regular_pic_train/255
     poisoned_pics_train = poisoned_pics_train/255
-    regular_pics_test = regular_pics_test/255 # Normalize
+    regular_pics_test = regular_pics_test/255
     print(input_dim)
     
     # Grab padded photos
@@ -325,6 +336,8 @@ def main(args):
     
     # A Model is fully parametrized by - epochs, scaling rate, input to waist ratio, hidden_dim_1
     
+    folder_name = HOMEMADE_POISON_PIC_LOCATION + RESIZED_POISONED_PIC_FILE_NAME + args.model_type + "/{}"
+
     model = ConvAutoencoderGenerator(
                 input_dim, args.hidden_dim_1,
                 intermediate_dim_scaling_rate=args.intermediate_dim_scaling_rate, 
@@ -336,18 +349,6 @@ def main(args):
         )
     
     model = model.call(Input(shape=input_dim))
-    model_type = args.model_type
-    if model_type == "antidote":
-        x = poisoned_pics_train
-        y = regular_pic_train
-        x_pred = poisoned_pics_train
-    elif model_type == "poison":
-        x = regular_pic_train
-        y = poisoned_pics_train
-        x_pred = regular_pics_test
-    else:
-        raise ValueError("model type {} is nooot supported".format(model_type))
-    
     if args.variational:
         pass
         # optimizer = tf.keras.optimizers.Adam(1e-4)
@@ -368,25 +369,51 @@ def main(args):
 
         print(model.summary())
         for epoch_count in range(args.steps, args.epochs+1, args.steps):
-            model.fit(
-                x=x,
-                y=y,
-                initial_epoch=epoch_count - args.steps,
-                epochs=epoch_count,
-                validation_split=0.33
-            )
+            # print(epoch_count, x.shape, y.shape)
+            if args.model_type == "antidote":
+                model.fit(
+                    x=poisoned_pics_train,
+                    y=regular_pic_train,
+                    initial_epoch=epoch_count - args.steps + 1,
+                    epochs=epoch_count,
+                    validation_split=0.2
+                )
+                y_hat = model.predict(poisoned_pics_train)*255
+                y_hat = y_hat.astype(np.uint8)
+            elif args.model_type == "poison":
+                model.fit(
+                    x=regular_pic_train,
+                    y=poisoned_pics_train,
+                    initial_epoch=epoch_count - args.steps + 1,
+                    epochs=epoch_count,
+                    validation_split=0.2
+                )
+                y_hat = model.predict(regular_pics_test)*255
+                y_hat = y_hat.astype(np.uint8)
+            else:
+                raise ValueError("model type {} is nooot supported".format(args.model_type))
 
-            model_name = "AE_h1dim={}_epochs={}_intermediate_dim_scaling_rate={}_input_to_waist_ratio={}_add_max_pooling={}_flat_waist={}".format(
-                    args.hidden_dim_1, epoch_count, args.intermediate_dim_scaling_rate, args.input_to_waist_ratio, args.add_max_pooling, args.flat_waist
+
+            model_name = "AE_activation={}_h1dim={}_epochs={}_intermediate_dim_scaling_rate={}_input_to_waist_ratio={}_add_max_pooling={}_flat_waist={}".format(
+                    args.activation, args.hidden_dim_1, epoch_count, args.intermediate_dim_scaling_rate, args.input_to_waist_ratio, args.add_max_pooling, args.flat_waist
                     )
             
-            model.save(MODEL_PATH + "/{}/{}.keras".format(model_type, model_name))
-            y_hat = model.predict(x_pred)*255
-            y_hat = y_hat.astype(np.uint8)
+            model.save(MODEL_PATH + "/{}/{}.keras".format(args.model_type, model_name))
 
-            save_path = HOMEMADE_POISON_PIC_LOCATION + RESIZED_POISONED_PIC_FILE_NAME
-            for i, y in enumerate(y_hat):
-                cv2.imwrite(save_path + model_name + "/pic{}.png".format(i), y
+            # create directory if it doesn't exist (actually just overwriiiite)
+            # Create the directory using os.mkdir()
+
+            
+            try:
+                os.mkdir(folder_name.format(model_name))
+                print(f"Directory '{folder_name.format(model_name)}' created successfully!")
+            except FileExistsError:
+                print(f"Directory '{folder_name.format(model_name)}' already exists.")
+            except OSError as error:
+                print(f"Error creating directory: {error}")
+
+            for i, y_ in enumerate(y_hat):
+                cv2.imwrite(folder_name.format(model_name) + "/pic{}.png".format(i), y_
                 )
 
 
