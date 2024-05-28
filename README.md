@@ -1,41 +1,27 @@
 # HomemadeAIPoison
 It's home-made and hurts bad AI... 
 
+
 ## What for? 
-Hey your friend is just showing off some AI bot they made. And you really wanna rub it in their face. So you decide to poison their AI and teach them a lesson... 🔪 🔪 🔪 
+Failed attempt at building home-made AI poison pill. But AI became a paintbrush for art.
+You can find some works here - https://gallery.so/neco. 
 
-I mean HELP them LEARN better AI Security and safety practices so they can DEPLOY safer and more robust AI. 😊 😛 🤪
+In a way I'm treating the process of modeling AI itself as an art.
 
-## Problem:
-Most AI poison pill tools don't publicize their code. Sure you can randomize your data or add adversarial examples or whatever but what if you're just some person who don't really know how AI works?
-w
-## Ok What is this really?
-Telegram game where ppl can deploy their own models and others can poison pill it. 
-
-Or an NFT project for super secretive group of whales. Who knows
-
-Could be both or neither. Who knows.
-
-## How Do:
-Reverse Engineer some AI poison pills. 
-
-Prepare some lab rats... 🐁🐁🐁 I mean AI models to poison...
-
-Deploy on Telegram... OR Launch NFT? You'll never know
-
-## Tools?
-Good old-fashioned reverse engineering skills.
-
-Some refreshers on how back-propagation and neural net activations work mathematically and functionally.
-
-Off-the-shelf AI models as virtual lab rats...
+## What was Achieved?
+1) Various color filters made by controling number of training epochs.
+2) Color contrast effects created by swapping out different activation functions.
+3) Pixelation control done by placing 2D convolutional layers at the right places.
 
 
-## Disclaimer:
-If this is successful, please do not use this for unethical or illegal purposes. I will find it out and make sure to report it to the authorities.
 
-I want people to use this to defend against unethical and predatory uses of AI, not as an excuse to build malicious things. 
+#### Disclaimers
+Realistically, Data poisoning is a nuanced technique that involves - 
+1) Duplicating data to make a model think data distribution is different that what it really is
+2) Perturbing data with random noise to effect what a model learns per data point
+3) Injecting false labels
+4) Swapping out real data with fake data during transmission
+5) And more. 
 
-Welp tbh, you have some statistical guarantees that having some poisoned data won't completely ruin your AI model so there's that.
+To make a model learn a distribution over a random noise would only be effective if one were to attempt to learn about the pseudo-randomness that a particular machine that generated poisoned data might be using. 
 
-Also most AI API already come with their own security solutions so you can't inject shit. Otherwise it's a cybersecurity issue trynna intercept model weights or interfere with signal transfer from one place to another for transfer learning.

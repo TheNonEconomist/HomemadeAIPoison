@@ -168,6 +168,6 @@ prep_work/*.json
 exploration/exploration.ipynb
 exploration/fafo.ipynb
 
-models/
+models/*
 
 *jpg
